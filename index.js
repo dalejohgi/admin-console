@@ -49,7 +49,7 @@ async function main() {
 										WHERE e.EsimBagId IN (${bagsIds}));`,
 							{ type: db.esimVault.QueryTypes.SELECT }
 						);
-						threeAustriaCount = threeAustriaCount[0]['COUNT(*)'];
+						threeAustriaCount = threeAustriaCount[0]["COUNT(*)"];
 
 						if (threeAustriaCount !== 500 * bags.length) {
 							console.log(
@@ -75,8 +75,9 @@ async function main() {
 								"Ingrese las variantes separadas por comas sin esspacios: "
 							)
 						);
-						let variants = variantsString.split(",").map(variant => JSON.stringify(variant));
-						console.log(`Variants ${variants}`)
+						const variants = variantsString
+							.split(",")
+							.map((variant) => JSON.stringify(variant));
 
 						// Lanzar confirmacion con datos ingresados
 						console.log(
@@ -88,26 +89,50 @@ async function main() {
 							booleanOpt,
 							`Deseas continuar?  `
 						);
-						// Carga 
+						// Carga
 						if (confirmationToTriggerBagLoad === 1) {
-							console.log(holaflyHex("CARGANDO PRODUCTOS..."));
+							console.log(
+								holaflyHex("CARGANDO PRODUCTOS Y VARIANTES...")
+							);
 
-							// for (id of bagsIds) {
-							// 	const result = await db.esimVault.query(`INSERT INTO EsimBagProductVariants (EsimBagId, ProductVariantId , createdAt, updatedAt)
-							// 											select ${id}, pv.id, NOW(), NOW()
-							// 											from ProductVariants pv 
-							// 											where pv.title = '${product}' and pv.product_title in () and pv.deletedAt is NULL;`)
-							// }
+							processedBags = 0;
+							for (bag of bags) {
+								try {
+									const result = await db.esimVault
+										.query(`INSERT INTO EsimBagProductVariants (EsimBagId, ProductVariantId , createdAt, updatedAt)
+										select ${bag.id}, pv.id, NOW(), NOW()
+										from ProductVariants pv 
+										where pv.title = '${product}' and pv.product_title in (${variants}) and pv.deletedAt is NULL;`);
 
-							// const result = db.esimVault.query(`insert INTO EsimBagProductVariants (EsimBagId, ProductVariantId , createdAt, updatedAt)
-							// select 'fca65020-1b16-4449-8ced-98aad96428c7', pv.id, NOW(), NOW()
-							// from ProductVariants pv 
-							// where pv.title = '15 días y datos ilimitados con llamadas' and pv.product_title in () and pv.deletedAt is NULL;`)
-							
-							
-							
-							
-							
+									console.log(
+										chalk.green(
+											`${bag.title} cargada con ${result.length}  productos.`
+										)
+									);
+
+									const result = await db.esimVault
+										.query(`INSERT INTO ProductVariantEsims (ProductVariantId, EsimId, createdAt, updatedAt)
+										SELECT pv.id, e.id, NOW(), NOW()
+										FROM ProductVariants pv, Esims e
+										WHERE e.EsimBagId = ${bag.id} and pv.id in (
+										SELECT pv2.id from ProductVariants pv2 where pv2.title = '${product}' and pv2.product_title in (${variants}) and pv.deletedAt is NULL;`);
+
+									console.log(
+										chalk.green(
+											`${bag.title} cargada con ${result.length}  variantes.`
+										)
+									);
+								} catch (error) {
+									console.log(
+										chalk.red(
+											`ERROR en la carga de productos de la bolsa ${bag.title}!!\n`,
+											error
+										)
+									);
+									return;
+								}
+								console.log(chalk.cyan('El proceso de carga ha terminado con exito!'))
+							}
 						} else {
 							console.log(holaflyHex("Carga cancelada..."));
 						}
