@@ -1,0 +1,25 @@
+{
+  "name": "admin-console",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dalejohgi/admin-console.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/dalejohgi/admin-console/issues"
+  },
+  "homepage": "https://github.com/dalejohgi/admin-console#readme",
+  "dependencies": {
+    "chalk": "3.0.0",
+    "dotenv": "^16.3.1",
+    "mysql2": "^3.4.2",
+    "sequelize": "^6.32.1"
+  }
+}
