@@ -1,5 +1,3 @@
-const { fieldEncryption } = require('../../helpers/fieldEncryption');
-
 module.exports = (sequelize, { UUID, UUIDV4, STRING, TEXT, BOOLEAN, DATE, DATEONLY }) => {
 	const Esim = sequelize.define(
 		'Esim',
@@ -15,7 +13,7 @@ module.exports = (sequelize, { UUID, UUIDV4, STRING, TEXT, BOOLEAN, DATE, DATEON
 			iccid: STRING,
 			msisdn: STRING,
 			esiminfo: TEXT,
-			code: fieldEncryption('code', { type: STRING }),
+			code: STRING,
 			status: STRING,
 			efftime: {
 				type: DATEONLY,
