@@ -32,7 +32,7 @@ async function main() {
 						attributes: ["id", "title"],
 						where: {
 							title: {
-								[db.Sequelize.Op.like]: `%${bagNamePattern}%`,
+							[db.Sequelize.Op.like]: `%${bagNamePattern}%`,
 							},
 						},
 						raw: true,
@@ -42,6 +42,11 @@ async function main() {
 						const bagsIds = bags.map((bag) => {
 							return JSON.stringify(bag.id);
 						});
+						console.log(
+							chalk.cyan(
+								`Se encontraron ${bags.length} bolsas con este patron.`
+							)
+						);
 						let threeAustriaCount = await db.esimVault.query(
 							`SELECT COUNT(*) FROM holafly_customers.ThreeAustriaIccidMsisdn taim
 								WHERE taim.ICCID IN (
@@ -98,28 +103,19 @@ async function main() {
 							processedBags = 0;
 							for (bag of bags) {
 								try {
-									const result = await db.esimVault
-										.query(`INSERT INTO EsimBagProductVariants (EsimBagId, ProductVariantId , createdAt, updatedAt)
-										select ${bag.id}, pv.id, NOW(), NOW()
-										from ProductVariants pv 
-										where pv.title = '${product}' and pv.product_title in (${variants}) and pv.deletedAt is NULL;`);
+									const EsimBagProductVariantsResult =
+										await db.esimVault.query(
+											`INSERT INTO EsimBagProductVariants (EsimBagId, ProductVariantId , createdAt, updatedAt) select '${bag.id}', pv.id, NOW(), NOW() from ProductVariants pv where pv.title = '${product}' and pv.product_title in (${variants}) and pv.deletedAt is NULL;`
+										);
+
+									const productVariantEsimsResult =
+										await db.esimVault.query(
+											`INSERT INTO ProductVariantEsims (ProductVariantId, EsimId, createdAt, updatedAt) SELECT pv.id, e.id, NOW(), NOW() FROM ProductVariants pv, Esims e WHERE e.EsimBagId = '${bag.id}' and pv.id in ( SELECT pv2.id from ProductVariants pv2 where pv2.title = '${product}' and pv2.product_title in (${variants}) and pv.deletedAt is NULL);`
+										);
 
 									console.log(
 										chalk.green(
-											`${bag.title} cargada con ${result.length}  productos.`
-										)
-									);
-
-									const result = await db.esimVault
-										.query(`INSERT INTO ProductVariantEsims (ProductVariantId, EsimId, createdAt, updatedAt)
-										SELECT pv.id, e.id, NOW(), NOW()
-										FROM ProductVariants pv, Esims e
-										WHERE e.EsimBagId = ${bag.id} and pv.id in (
-										SELECT pv2.id from ProductVariants pv2 where pv2.title = '${product}' and pv2.product_title in (${variants}) and pv.deletedAt is NULL;`);
-
-									console.log(
-										chalk.green(
-											`${bag.title} cargada con ${result.length}  variantes.`
+											`${bag.title} cargada con ${EsimBagProductVariantsResult[1]} productos, ${productVariantEsimsResult[1]} productVariantsEsims.`
 										)
 									);
 								} catch (error) {
@@ -131,8 +127,12 @@ async function main() {
 									);
 									return;
 								}
-								console.log(chalk.cyan('El proceso de carga ha terminado con exito!'))
 							}
+							console.log(
+								chalk.cyan(
+									"El proceso de carga ha terminado con exito!"
+								)
+							);
 						} else {
 							console.log(holaflyHex("Carga cancelada..."));
 						}

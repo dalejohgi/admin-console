@@ -11,7 +11,8 @@ const esimVault = new Sequelize({
     database: DBNAME_ESIMVAULT,
     port: 3306,
     host: DBHOST,
-    dialect: 'mysql'
+    dialect: 'mysql',
+    logging: false
 });
 
 const customers = new Sequelize({
@@ -20,7 +21,8 @@ const customers = new Sequelize({
     database: DBNAME_CUSTOMERS,
     port: 3306,
     host: DBHOST,
-    dialect: 'mysql'
+    dialect: 'mysql',
+    logging: false
 });
 
 db = {esimVault, customers, Sequelize};
