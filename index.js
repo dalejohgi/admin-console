@@ -11,7 +11,7 @@ async function main() {
 		console.log(chalk.white("\n----------------------------------------"));
 		console.log(holaflyHex("Bienvenid@ a la consola Holafly Admin."));
 		console.log(chalk.white("----------------------------------------"));
-		const processOptions = ["Cargar productos a una bolsa", "Salir"];
+		const processOptions = ["Cargar productos a una bolsa", "Desasignar productos de una bolsa", "Salir"];
 		const booleanOpt = ["Si", "No"];
 
 		let chosedProcess = await createPrompt(
@@ -19,7 +19,7 @@ async function main() {
 			"Que deseas hacer?"
 		);
 
-		while (chosedProcess !== 2) {
+		while (chosedProcess !== 3) {
 			switch (chosedProcess) {
 				// Cargar productos a una bolsa
 				case 1:
@@ -135,6 +135,115 @@ async function main() {
 							);
 						} else {
 							console.log(holaflyHex("Carga cancelada..."));
+						}
+					} else {
+						console.log(
+							chalk.red(
+								"No existen bolsas con este patron de nombre."
+							)
+						);
+					}
+					break;
+				
+				case 2:
+					// desasignar productos a una bolsa
+					const bagName = await prompt(
+						holaflyHex(
+							"Ingrese el nombre de las bolsa a la que desea remover los productos: "
+						)
+					);
+					const bag = await db.EsimBag.findOne({
+						attributes: ["id", "title"],
+						where: {
+							title: bagName,
+						},
+						raw: true,
+					});
+
+					if (bag) {
+						const bagId = bag.id;
+						console.log(
+							chalk.cyan(
+								`Se encontró la bolsa ${bag.title}`
+							)
+						);
+
+						const product = await prompt(
+							holaflyHex(
+								"Ingrese el producto a eliminar (ej: x dias y datos ilimitados): "
+							)
+						);
+						const variantsString = await prompt(
+							holaflyHex(
+								"Ingrese las variantes que desea remover separadas por comas sin espacios: "
+							)
+						);
+						const variants = variantsString
+							.split(",")
+							.map((variant) => JSON.stringify(variant));
+
+						// Lanzar confirmacion con datos ingresados
+						console.log(
+							chalk.cyan(
+								`Estas a punto de eliminar el producto "${product}" en ${variants} asociados a la bolsa ${bag.title}`
+							)
+						);
+						const confirmationToTriggerBagLoad = await createPrompt(
+							booleanOpt,
+							`Deseas continuar?  `
+						);
+						// Carga
+						if (confirmationToTriggerBagLoad === 1) {
+							console.log(
+								holaflyHex("ELIMINANDO PRODUCTOS...")
+							);
+
+							
+							try {
+								const EsimBagProductVariantsResult =
+									await db.esimVault.query(
+										`DELETE ebpv FROM EsimBagProductVariants ebpv WHERE EsimBagId = '${bagId}';
+										`
+									);
+
+								const productVariantEsimsResult =
+									await db.esimVault.query(`
+										DELETE pve
+										FROM ProductVariantEsims pve
+										JOIN ProductVariants pv ON pv.id = pve.ProductVariantId
+										JOIN Esims e ON e.id = pve.EsimId
+										WHERE e.EsimBagId = '${bagId}'
+										AND pv.id IN (
+											SELECT pv2.id
+											FROM ProductVariants pv2
+											WHERE pv2.title = '${product}'
+											AND pv2.product_title IN (
+												${variants}
+											)
+											AND pv2.deletedAt IS NULL
+										);`);
+								console.log(
+									chalk.green(
+										`Se han eliminado ${EsimBagProductVariantsResult[0].affectedRows} productos, ${productVariantEsimsResult[0].affectedRows} productVariantsEsims de la bolsa ${bag.title}`
+									)
+								);
+							} catch (error) {
+								console.log(
+									chalk.red(
+										`ERROR eliminado productos de la bolsa ${bag.title}!!\n`,
+										error
+									)
+								);
+								return;
+							}
+							
+							console.log(
+								chalk.cyan(
+									"El proceso de eliminacion de productos ha terminado con exito!"
+								)
+							);
+						} else {
+							console.log(holaflyHex("Eliminacion de productos cancelada..."));
 						}
 					} else {
 						console.log(
