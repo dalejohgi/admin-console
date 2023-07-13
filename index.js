@@ -101,7 +101,7 @@ async function main() {
 							);
 
 							processedBags = 0;
-							for (bag of bags) {
+							for (let bag of bags) {
 								try {
 									const EsimBagProductVariantsResult =
 										await db.esimVault.query(
