@@ -9,7 +9,7 @@ async function main() {
 		// Conexión a la base de datos
 		//await sequelize.authenticate();
 		console.log(chalk.white("\n----------------------------------------"));
-		console.log(holaflyHex("Bienvenid@ a la consola Holafly Admin."));
+		console.log(holaflyHex("Bienvenid@ a la consola Holafly!"));
 		console.log(chalk.white("----------------------------------------"));
 		const processOptions = ["Cargar productos a una bolsa", "Desasignar productos de una bolsa", "Salir"];
 		const booleanOpt = ["Si", "No"];
@@ -25,7 +25,7 @@ async function main() {
 				case 1:
 					const bagNamePattern = await prompt(
 						holaflyHex(
-							"Ingrese el patron de nombres de las bolsas a cargar: "
+							"Ingresa el patron de nombres de las bolsas a cargar: "
 						)
 					);
 					const bags = await db.EsimBag.findAll({
@@ -59,7 +59,7 @@ async function main() {
 						if (threeAustriaCount !== 500 * bags.length) {
 							console.log(
 								chalk.magenta(
-									"\nADVERTENCIA!\nLa cantidad de esims en stock NO coincide con los registros de 3ausMsisdnIccid, es posible que el proceso de recarga haya fallado"
+									"\nADVERTENCIA!\nLa cantidad de esims en stock NO coincide con las esims recargada, es posible que el proceso de recarga haya fallado. Contacta al equipo TECH antes de continuar!"
 								)
 							);
 							const warningConfirmation = await createPrompt(
@@ -72,12 +72,12 @@ async function main() {
 						}
 						const product = await prompt(
 							holaflyHex(
-								"Ingrese el producto a cargar (ej: x dias y datos ilimitados): "
+								"Ingresa la variante a cargar (ej: x dias y datos ilimitados): "
 							)
 						);
 						const variantsString = await prompt(
 							holaflyHex(
-								"Ingrese las variantes separadas por comas sin esspacios: "
+								"Ahora ingresa los productos separados por comas y sin espacios: "
 							)
 						);
 						const variants = variantsString
@@ -87,7 +87,7 @@ async function main() {
 						// Lanzar confirmacion con datos ingresados
 						console.log(
 							chalk.cyan(
-								`Estas a punto de cargar ${bags.length} bolsa(s) con ${product} para las ${variants.length} variantes:\n${variants}`
+								`Estas a punto de cargar ${bags.length} bolsa(s) con ${product} para los ${variants.length} productos:\n${variants}`
 							)
 						);
 						const confirmationToTriggerBagLoad = await createPrompt(
@@ -108,14 +108,13 @@ async function main() {
 											`INSERT INTO EsimBagProductVariants (EsimBagId, ProductVariantId , createdAt, updatedAt) select '${bag.id}', pv.id, NOW(), NOW() from ProductVariants pv where pv.title = '${product}' and pv.product_title in (${variants}) and pv.deletedAt is NULL;`
 										);
 
-									const productVariantEsimsResult =
-										await db.esimVault.query(
+									const productVariantEsimsResult = await db.esimVault.query(
 											`INSERT INTO ProductVariantEsims (ProductVariantId, EsimId, createdAt, updatedAt) SELECT pv.id, e.id, NOW(), NOW() FROM ProductVariants pv, Esims e WHERE e.EsimBagId = '${bag.id}' and pv.id in ( SELECT pv2.id from ProductVariants pv2 where pv2.title = '${product}' and pv2.product_title in (${variants}) and pv.deletedAt is NULL);`
 										);
 
 									console.log(
 										chalk.green(
-											`${bag.title} cargada con ${EsimBagProductVariantsResult[1]} productos, ${productVariantEsimsResult[1]} productVariantsEsims.`
+											`${bag.title} cargada con ${EsimBagProductVariantsResult[1]} productos ------ ${productVariantEsimsResult[1]} productVariantsEsims.`
 										)
 									);
 								} catch (error) {
@@ -170,12 +169,12 @@ async function main() {
 
 						const product = await prompt(
 							holaflyHex(
-								"Ingrese el producto a eliminar (ej: x dias y datos ilimitados): "
+								"Ingresa la variante a eliminar (ej: x dias y datos ilimitados): "
 							)
 						);
 						const variantsString = await prompt(
 							holaflyHex(
-								"Ingrese las variantes que desea remover separadas por comas sin espacios: "
+								"Ingresa los productos de está variate que deseas remover separados por comas sin espacios: "
 							)
 						);
 						const variants = variantsString
@@ -185,7 +184,7 @@ async function main() {
 						// Lanzar confirmacion con datos ingresados
 						console.log(
 							chalk.cyan(
-								`Estas a punto de eliminar el producto "${product}" en ${variants} asociados a la bolsa ${bag.title}`
+								`Estas a punto de eliminar la variante "${product}" en ${variants} asociada a la bolsa ${bag.title}`
 							)
 						);
 						const confirmationToTriggerBagLoad = await createPrompt(
@@ -201,30 +200,29 @@ async function main() {
 							
 							try {
 								const EsimBagProductVariantsResult =
-									await db.esimVault.query(
-										`DELETE ebpv FROM EsimBagProductVariants ebpv WHERE EsimBagId = '${bagId}';
-										`
+									await db.esimVault.query(`
+										DELETE ebpv FROM EsimBagProductVariants ebpv WHERE EsimBagId = '${bagId}' AND ProductVariantId IN (
+											SELECT pv.id FROM ProductVariants pv WHERE pv.id = ebpv.ProductVariantId AND pv.title = '${product}'
+											AND pv.product_title IN (${variants}));`
 									);
 
 								const productVariantEsimsResult =
-									await db.esimVault.query(`
-										DELETE pve
-										FROM ProductVariantEsims pve
-										JOIN ProductVariants pv ON pv.id = pve.ProductVariantId
-										JOIN Esims e ON e.id = pve.EsimId
+									await db.esimVault.query(`DELETE pve FROM ProductVariantEsims pve
+									WHERE ProductVariantId IN (
+										SELECT pv.id
+										FROM ProductVariants pv
+										WHERE pv.title = '${product}'
+										AND pv.product_title IN (${variants})
+										AND pv.deletedAt IS NULL
+									)
+									AND EsimId IN (
+										SELECT e.id
+										FROM Esims e
 										WHERE e.EsimBagId = '${bagId}'
-										AND pv.id IN (
-											SELECT pv2.id
-											FROM ProductVariants pv2
-											WHERE pv2.title = '${product}'
-											AND pv2.product_title IN (
-												${variants}
-											)
-											AND pv2.deletedAt IS NULL
-										);`);
+									);`);
 								console.log(
 									chalk.green(
-										`Se han eliminado ${EsimBagProductVariantsResult[0].affectedRows} productos, ${productVariantEsimsResult[0].affectedRows} productVariantsEsims de la bolsa ${bag.title}`
+										`Se han eliminado ${EsimBagProductVariantsResult[0].affectedRows} productVariants, ${productVariantEsimsResult[0].affectedRows} productVariantsEsims de la bolsa ${bag.title}`
 									)
 								);
 							} catch (error) {
